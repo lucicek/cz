@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Cermat Search - Vyhledávání</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input[type="text"] { width: 100%; padding: 12px; box-sizing: border-box; border: 2px solid #007bff; border-radius: 5px; font-size: 16px; }
+        .result { padding: 15px; border-bottom: 1px solid #eee; background: white; border-radius: 5px; margin-bottom: 10px; }
+        .result strong { color: #007bff; display: block; margin-bottom: 5px; }
+        .snippet { font-size: 14px; color: #333; line-height: 1.5; }
+        #status { color: #28a745; font-weight: bold; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Vyhledávání v databázi</h2>
+    <div id="status">✅ Databáze načtena</div>
+    <input type="text" id="searchInput" placeholder="Zadejte hledaný text (např. bouř žene)...">
+</div>
+
+<div id="results"></div>
+
+<script type="module">
+    import { db } from './data.js';
+
+    // Funkce pro vyčištění textu (musí být stejná jako při tvorbě DB)
+    const superClean = (str) => {
+        return str.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // odstraní diakritiku
+            .replace(/[^a-z0-9]/g, '');      // odstraní mezery a znaky
+    };
+
+    const searchInput = document.getElementById('searchInput');
+    const resDiv = document.getElementById('results');
+
+    searchInput.oninput = (e) => {
+        const queryRaw = e.target.value;
+        const queryClean = superClean(queryRaw);
+        
+        resDiv.innerHTML = '';
+
+        if (queryClean.length < 3) return;
+
+        db.forEach(item => {
+            // Hledáme vyčištěný dotaz ve vyčištěném textu
+            if (item.cleaned.includes(queryClean)) {
+                const div = document.createElement('div');
+                div.className = 'card result';
+                
+                // Zobrazení úryvku z originálního textu
+                // Najdeme přibližnou pozici v originálu (orientačně)
+                const index = item.cleaned.indexOf(queryClean);
+                const snippet = item.original.substring(Math.max(0, index - 40), index + 160)
+                                     .replace(/\n/g, ' ');
+
+                div.innerHTML = `
+                    <strong>📄 ${item.name} (strana ${item.page})</strong>
+                    <div class="snippet">...${snippet}...</div>
+                `;
+                resDiv.appendChild(div);
+            }
+        });
+
+        if (resDiv.innerHTML === '' && queryClean.length >= 3) {
+            resDiv.innerHTML = '<div class="card">Žádná shoda nebyla nalezena.</div>';
+        }
+    };
+</script>
+
+</body>
+</html>
